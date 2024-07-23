@@ -1,0 +1,6 @@
+---
+- name: Install Gitlab Server
+  hosts: gitlab-server
+  become: true
+  tasks:
+    - ping:
