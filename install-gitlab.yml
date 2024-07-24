@@ -2,5 +2,24 @@
 - name: Install Gitlab Server
   hosts: gitlab-server
   become: true
+
+  roles:
+    - geerlingguy.gitlab
+
   tasks:
-    - ping:
+    - name: Open port 80 and 443
+      ansible.posix.firewalld:
+        service: "{{ item }}"
+        permanent: true
+        state: enabled
+      loop:
+        - http
+        - https
+      notify: Reload firewalld
+      tags: firewalld
+
+  handlers:
+    - name: Reload firewalld
+      ansible.builtin.service:
+        name: firewalld
+        state: reloaded

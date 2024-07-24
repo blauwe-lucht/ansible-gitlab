@@ -79,17 +79,12 @@
         "tmux": null
     },
 
-    // Make sure the Ansible extension is using ansible-lint from the virtual env:
-    // (this will only work when using Remote SSH to the acs)
-    "ansible.python.interpreterPath": "/home/vagrant/venv-ansible/bin/python",
-    "ansible.ansible.path": "/home/vagrant/venv-ansible/bin/ansible",
-    "ansible.validation.lint.path": "/home/vagrant/venv-ansible/bin/ansible-lint",
-
     // Prevent line ending differences between Windows and Linux:
     "files.eol": "\n",
 
     // Open every .yml file as Ansible file.
     "files.associations": {
         "*.yml": "ansible"
-    }
+    },
+    "ansible.python.interpreterPath": "/home/sebastiaan/python3-venv/ansible-latest/bin/python"
 }
