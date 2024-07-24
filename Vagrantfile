@@ -15,12 +15,17 @@ Vagrant.configure("2") do |config|
                 apt-get update
                 apt-get install -y python3-venv
 
+                # The recommended way of installing Ansible is in a Python virtual environment.
                 sudo -u vagrant bash -c '
                     python3 -m venv /home/vagrant/venv-ansible
 
                     . /home/vagrant/venv-ansible/bin/activate
+                    # Sometimes older versions of pip will result in errors when installing Ansible,
+                    # so upgrade it to the latest first.
                     pip install --upgrade pip
-                    # Installing Ansible 9.8.0 since that is the latest that supports the default Python (3.6) of Alma Linux 8.
+
+                    # Installing Ansible 9.8.0 since that is the latest that supports
+                    # Python 3.6 of Alma Linux 8 and Python 2.7 of CentOS 7.
                     pip install ansible==9.8.0 ansible-lint
 
                     # Make sure we always use ansible from the virtualenv.
