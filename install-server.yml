@@ -20,6 +20,13 @@
       notify: Reload firewalld
       tags: firewalld
 
+    - name: Copy self-signed certificate
+      ansible.builtin.fetch:
+        src: /etc/gitlab/ssl/gitlab.crt
+        dest: /home/vagrant/
+        # Stores the file at /home/vagrant/gitlab-server/etc/gitlab/ssl/gitlab.crt
+      tags: fetch
+
   handlers:
     - name: Reload firewalld
       ansible.builtin.service:
