@@ -64,7 +64,7 @@
     state: directory
     owner: root
     group: root
-    mode: 0700
+    mode: "0700"
   when: gitlab_create_self_signed_cert
 
 - name: Create self-signed certificate.
@@ -81,5 +81,5 @@
     dest: /etc/gitlab/gitlab.rb
     owner: root
     group: root
-    mode: 0600
+    mode: "0600"
   notify: Restart gitlab
