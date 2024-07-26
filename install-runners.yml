@@ -1,0 +1,32 @@
+---
+- name: Install Gitlab runners
+  hosts: gitlab_runners
+  become: true
+
+  tasks:
+    - name: Copy Gitlab server self signed certificate
+      ansible.builtin.copy:
+        src: /home/vagrant/gitlab-server/etc/gitlab/ssl/gitlab.crt
+        dest: /etc/pki/ca-trust/source/anchors/
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Update CA trust
+
+    - name: Add gitlab to hosts
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: 192.168.16.45  gitlab
+
+    - name: Check connection to Gitlab server
+      ansible.builtin.uri:
+        url: https://gitlab
+        return_content: true
+      register: uri_result
+      failed_when: "'GitLab Community Edition' not in uri_result.content"
+
+  handlers:
+    - name: Update CA trust
+      ansible.builtin.command:
+        cmd: update-ca-trust
+      changed_when: true
