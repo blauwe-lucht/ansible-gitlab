@@ -25,6 +25,25 @@
       register: uri_result
       failed_when: "'GitLab Community Edition' not in uri_result.content"
 
+    - name: Copy rpm key
+      ansible.builtin.copy:
+        src: etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab
+        dest: /etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab
+        owner: root
+        group: root
+        mode: "0644"
+      tags: yum
+
+    - name: Install rpm key
+      ansible.builtin.rpm_key:
+        key: /etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab
+      tags: yum
+
+    - name: Install package
+      ansible.builtin.yum:
+        name: https://s3.dualstack.us-east-1.amazonaws.com/gitlab-runner-downloads/latest/rpm/gitlab-runner_amd64.rpm
+      tags: yum
+
   handlers:
     - name: Update CA trust
       ansible.builtin.command:
