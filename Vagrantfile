@@ -44,6 +44,11 @@ Vagrant.configure("2") do |config|
         gitlab_server.vm.hostname = "gitlab-server"
 
         gitlab_server.vm.network "private_network", ip: "192.168.16.45"
+
+        gitlab_server.vm.provider "virtualbox" do |vb|
+            vb.memory = "4096"
+            vb.cpus = 4
+        end
     end
 
     # Gitlab runner CentOS 7:
