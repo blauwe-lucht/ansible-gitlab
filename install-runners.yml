@@ -2,6 +2,9 @@
 - name: Install Gitlab runners
   hosts: gitlab_runners
   become: true
+  vars:
+    gitlab_runner_timeout_stop_seconds: 7200
+    gitlab_base_url: https://gitlab
 
   tasks:
     - name: Copy Gitlab server self signed certificate
@@ -13,6 +16,9 @@
         mode: "0644"
       notify: Update CA trust
 
+    - name: Run handlers to make sure certificate is loaded
+      ansible.builtin.meta: flush_handlers
+
     - name: Add gitlab to hosts
       ansible.builtin.lineinfile:
         path: /etc/hosts
@@ -20,7 +26,7 @@
 
     - name: Check connection to Gitlab server
       ansible.builtin.uri:
-        url: https://gitlab
+        url: "{{ gitlab_base_url }}"
         return_content: true
       register: uri_result
       failed_when: "'GitLab Community Edition' not in uri_result.content"
@@ -43,6 +49,62 @@
       ansible.builtin.yum:
         name: https://s3.dualstack.us-east-1.amazonaws.com/gitlab-runner-downloads/latest/rpm/gitlab-runner_amd64.rpm
       tags: yum
+
+    - name: Create /etc/systemd/system/gitlab-runner.service.d
+      ansible.builtin.file:
+        path: /etc/systemd/system/gitlab-runner.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Add reload command to GitLab Runner system service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/gitlab-runner.service.d/exec-reload.conf
+        content: |
+          [Service]
+          ExecReload=/bin/kill -HUP $MAINPID
+        owner: root
+        group: root
+        mode: "0644"
+      register: copy_reload_result
+
+    # https://docs.gitlab.com/runner/configuration/init.html#overriding-systemd
+    - name: Configure graceful stop for GitLab Runner system service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/gitlab-runner.service.d/kill.conf
+        content: |
+          [Service]
+          TimeoutStopSec={{ gitlab_runner_timeout_stop_seconds }}
+          KillSignal=SIGQUIT
+        owner: root
+        group: root
+        mode: "0644"
+      when: gitlab_runner_timeout_stop_seconds > 0
+      register: copy_kill_result
+
+    - name: Force systemd to reread configs
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: copy_reload_result.changed or copy_kill_result.changed
+
+    - name: Check if runner needs to be registered
+      ansible.builtin.command:
+        cmd: gitlab-runner list
+      changed_when: false
+      register: list_result
+      tags: register
+
+    - name: Read token from file on ACS
+      ansible.builtin.set_fact:
+        token: "{{ lookup('file', '/home/vagrant/gitlab-server/runner-token-' ~ inventory_hostname) }}"
+
+    - name: Register runner
+      ansible.builtin.command:
+        cmd: gitlab-runner register --non-interactive --url "{{ gitlab_base_url }}" --token "{{ token }}" --executor "shell" --description "GitLab Runner"
+      changed_when: true
+      when: "'GitLab Runner' not in list_result.stdout"
+      tags: register
 
   handlers:
     - name: Update CA trust
