@@ -8,9 +8,10 @@
           - runner is defined
           - runner.name is defined
           - runner.tag is defined
+          - runner.node is defined
 
     - name: Register a GitLab Runner for {{ runner.name }}
-      community.general.gitlab_runner:
+      community.general.gitlab_runner: # noqa args[module] : current gitlab server does not require registration_token
         api_url: "{{ gitlab_base_url }}"
         validate_certs: false
         api_username: root
@@ -27,7 +28,7 @@
 
     - name: Store token for runner
       ansible.builtin.copy:
-        dest: /home/vagrant/gitlab-server/runner-token-{{ runner.tag }}
+        dest: /home/vagrant/gitlab-server/runner-token-{{ runner.node }}
         content: "{{ runner_result.runner.token }}"
         owner: vagrant
         group: vagrant

@@ -78,7 +78,7 @@
         api_password: "{{ gitlab_root_password }}"
         name: "{{ gitlab_project }}"
         validate_certs: false # Nasty, but even when correctly adding the self-signed certificate this module
-                              # keeps giving: Hostname mismatch, certificate is not valid for 'gitlab'
+                              # keeps giving: certificate verify failed: self-signed certificate
       environment:
         REQUESTS_CA_BUNDLE: /etc/pki/ca-trust/source/anchors/gitlab.crt
       register: project_result
@@ -113,8 +113,10 @@
       loop:
         - name: CentOS 7
           tag: centos7
+          node: gitlab-runner-7
         - name: AlmaLinux 8
           tag: alma8
+          node: gitlab-runner-8
       loop_control:
         loop_var: runner
         label: "{{ runner.name }}"
