@@ -1,0 +1,36 @@
+---
+- name: Register a GitLab runner
+  tags: runners
+  block:
+    - name: Check input parameters
+      ansible.builtin.assert:
+        that:
+          - runner is defined
+          - runner.name is defined
+          - runner.tag is defined
+
+    - name: Register a GitLab Runner for {{ runner.name }}
+      community.general.gitlab_runner:
+        api_url: "{{ gitlab_base_url }}"
+        validate_certs: false
+        api_username: root
+        api_password: "{{ gitlab_root_password }}"
+        description: "GitLab Runner for {{ runner.name }}"
+        run_untagged: false
+        locked: false
+        active: true
+        project: "{{ project_result.project.id }}"
+        tag_list:
+          - "{{ runner.tag }}"
+        state: present
+      register: runner_result
+
+    - name: Store token for runner
+      ansible.builtin.copy:
+        dest: /home/vagrant/gitlab-server/runner-token-{{ runner.tag }}
+        content: "{{ runner_result.runner.token }}"
+        owner: vagrant
+        group: vagrant
+        mode: "0644"
+      delegate_to: localhost
+      when: runner_result.runner is defined and runner_result.runner.token is defined

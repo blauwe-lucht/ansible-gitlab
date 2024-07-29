@@ -4,6 +4,9 @@
   become: true
   vars:
     gitlab_root_password: Abcd1234!
+    gitlab_host: "192.168.16.45"
+    gitlab_base_url: https://gitlab
+    gitlab_project: my_first_project
 
   roles:
     - geerlingguy.gitlab
@@ -20,12 +23,102 @@
       notify: Reload firewalld
       tags: firewalld
 
+    - name: Execute handlers to make sure firewall is reloaded
+      ansible.builtin.meta: flush_handlers
+
+    - name: Add gitlab to hosts
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ gitlab_host }}  gitlab"
+
     - name: Copy self-signed certificate
       ansible.builtin.fetch:
         src: /etc/gitlab/ssl/gitlab.crt
         dest: /home/vagrant/
         # Stores the file at /home/vagrant/gitlab-server/etc/gitlab/ssl/gitlab.crt
       tags: fetch
+
+    - name: Copy Gitlab server self signed certificate
+      ansible.builtin.copy:
+        src: /home/vagrant/gitlab-server/etc/gitlab/ssl/gitlab.crt
+        dest: /etc/pki/ca-trust/source/anchors/
+        owner: root
+        group: root
+        mode: "0644"
+      register: copy_certificate_result
+
+    - name: Update CA trust
+      ansible.builtin.command: # noqa no-handler : we need the certificate to be trusted before we can access the GitLab API
+        cmd: update-ca-trust
+      changed_when: true
+      when: copy_certificate_result.changed
+
+    - name: Install pip
+      ansible.builtin.yum:
+        name: python3-pip
+      tags: project
+
+    - name: Install python-gitlab
+      ansible.builtin.pip:
+        name: python-gitlab
+      tags: project
+
+    - name: Check connection to Gitlab server
+      ansible.builtin.uri:
+        url: https://gitlab
+        return_content: true
+      register: uri_result
+      failed_when: "'GitLab Community Edition' not in uri_result.content"
+      tags: check
+
+    - name: Create project
+      community.general.gitlab_project:
+        api_url: "{{ gitlab_base_url }}"
+        api_username: root
+        api_password: "{{ gitlab_root_password }}"
+        name: "{{ gitlab_project }}"
+        validate_certs: false # Nasty, but even when correctly adding the self-signed certificate this module
+                              # keeps giving: Hostname mismatch, certificate is not valid for 'gitlab'
+      environment:
+        REQUESTS_CA_BUNDLE: /etc/pki/ca-trust/source/anchors/gitlab.crt
+      register: project_result
+      tags:
+        - project
+        - runners
+
+    # Because this is a demo we can use the resource owner password credentials flow,
+    # see https://docs.gitlab.com/ee/api/oauth2.html#resource-owner-password-credentials-flow
+    # Normally you'd create a PAT or project token using the web UI.
+    - name: Create OAuth token
+      ansible.builtin.uri:
+        method: POST
+        url: "{{ gitlab_base_url }}/oauth/token"
+        body:
+          grant_type: password
+          username: root
+          password: "{{ gitlab_root_password }}"
+        body_format: form-urlencoded
+        return_content: true
+      register: oauth_result
+      tags: oauth
+
+    - name: Display token
+      ansible.builtin.debug:
+        msg: "{{ oauth_result.json.access_token }}"
+      tags: oauth
+
+    - name: Register runners
+      ansible.builtin.include_tasks:
+        file: tasks/_loop_runner.yml
+      loop:
+        - name: CentOS 7
+          tag: centos7
+        - name: AlmaLinux 8
+          tag: alma8
+      loop_control:
+        loop_var: runner
+        label: "{{ runner.name }}"
+      tags: runners
 
   handlers:
     - name: Reload firewalld
