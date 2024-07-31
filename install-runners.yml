@@ -50,44 +50,6 @@
         name: https://s3.dualstack.us-east-1.amazonaws.com/gitlab-runner-downloads/latest/rpm/gitlab-runner_amd64.rpm
       tags: yum
 
-    - name: Create /etc/systemd/system/gitlab-runner.service.d
-      ansible.builtin.file:
-        path: /etc/systemd/system/gitlab-runner.service.d
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
-
-    - name: Add reload command to GitLab Runner system service
-      ansible.builtin.copy:
-        dest: /etc/systemd/system/gitlab-runner.service.d/exec-reload.conf
-        content: |
-          [Service]
-          ExecReload=/bin/kill -HUP $MAINPID
-        owner: root
-        group: root
-        mode: "0644"
-      register: copy_reload_result
-
-    # https://docs.gitlab.com/runner/configuration/init.html#overriding-systemd
-    - name: Configure graceful stop for GitLab Runner system service
-      ansible.builtin.copy:
-        dest: /etc/systemd/system/gitlab-runner.service.d/kill.conf
-        content: |
-          [Service]
-          TimeoutStopSec={{ gitlab_runner_timeout_stop_seconds }}
-          KillSignal=SIGQUIT
-        owner: root
-        group: root
-        mode: "0644"
-      when: gitlab_runner_timeout_stop_seconds > 0
-      register: copy_kill_result
-
-    - name: Force systemd to reread configs
-      ansible.builtin.systemd:
-        daemon_reload: true
-      when: copy_reload_result.changed or copy_kill_result.changed
-
     - name: Check if runner needs to be registered
       ansible.builtin.command:
         cmd: gitlab-runner list
@@ -103,7 +65,7 @@
       ansible.builtin.command:
         cmd: gitlab-runner register --non-interactive --url "{{ gitlab_base_url }}" --token "{{ token }}" --executor "shell" --description "GitLab Runner"
       changed_when: true
-      when: "'GitLab Runner' not in list_result.stdout"
+      when: "'GitLab Runner' not in list_result.stderr"
       tags: register
 
   handlers:
