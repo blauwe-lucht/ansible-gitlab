@@ -4,7 +4,6 @@ Vagrant.configure("2") do |config|
         acs.vm.box = "generic/ubuntu2204"
         acs.vm.hostname = "acs"
 
-        # Provision script to register this VM with the RHEL subscription.
         acs.vm.provision "shell" do |shell|
             shell.inline = <<-SHELL
                 set -euo pipefail
